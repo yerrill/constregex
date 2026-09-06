@@ -1,0 +1,63 @@
+pub enum Grammar<'a> {
+    /// Match any single character
+    Wild,
+    /// Match a sequence of characters in order
+    Literal(char),
+    /// Match any single character in the inclusive range `start..=end`
+    Range(char, char),
+    /// Match a sequence of grammars in order
+    Concatenation(&'a [Grammar<'a>]),
+    /// Match on any of the given grammars
+    Alternation(&'a [Grammar<'a>]),
+    // ? Match Grammar zero or more times
+    ZeroOrOne(&'a Grammar<'a>),
+    // * Match Grammar zero or more times
+    ZeroOrMany(&'a Grammar<'a>),
+    // ? Match Grammar one or more times
+    OneOrMany(&'a Grammar<'a>),
+}
+
+impl<'a> Grammar<'a> {
+    /// `const` time calculation of the required number of states for a given grammar.
+    /// Designed so `RegularExpression` can be given an exact size parameter.
+    pub const fn grammar_size(&self) -> usize {
+        rec_calculate_size(self) + 1
+    }
+}
+
+/// Recursively calculate states size.
+/// Based on `RegularExpression`.
+const fn rec_calculate_size(input: &Grammar) -> usize {
+    match input {
+        Grammar::Wild => 1,
+        Grammar::Literal(_) => 1,
+        Grammar::Range(_, _) => 1,
+        Grammar::Concatenation(grammars) => {
+            let mut i = 0;
+            let mut acc = 0;
+
+            while i < grammars.len() {
+                acc += rec_calculate_size(&grammars[i]);
+                i += 1;
+            }
+
+            acc
+        }
+        Grammar::Alternation(grammars) => {
+            let mut i = 0;
+            let mut acc = 0;
+
+            while i < grammars.len() {
+                acc += rec_calculate_size(&grammars[i]);
+                i += 1;
+            }
+
+            acc += grammars.len() - 1;
+
+            acc
+        }
+        Grammar::ZeroOrOne(grammar) => rec_calculate_size(grammar) + 1,
+        Grammar::ZeroOrMany(grammar) => rec_calculate_size(grammar) + 1,
+        Grammar::OneOrMany(grammar) => rec_calculate_size(grammar) + 1,
+    }
+}
