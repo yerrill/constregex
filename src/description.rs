@@ -17,9 +17,10 @@ pub enum Grammar<'a> {
     OneOrMany(&'a Grammar<'a>),
 }
 
-impl<'a> Grammar<'a> {
+impl Grammar<'_> {
     /// `const` time calculation of the required number of states for a given grammar.
     /// Designed so `RegularExpression` can be given an exact size parameter.
+    #[must_use]
     pub const fn grammar_size(&self) -> usize {
         rec_calculate_size(self) + 1
     }
@@ -29,9 +30,7 @@ impl<'a> Grammar<'a> {
 /// Based on `RegularExpression`.
 const fn rec_calculate_size(input: &Grammar) -> usize {
     match input {
-        Grammar::Wild => 1,
-        Grammar::Literal(_) => 1,
-        Grammar::Range(_, _) => 1,
+        Grammar::Wild | Grammar::Literal(_) | Grammar::Range(_, _) => 1,
         Grammar::Concatenation(grammars) => {
             let mut i = 0;
             let mut acc = 0;
@@ -56,8 +55,8 @@ const fn rec_calculate_size(input: &Grammar) -> usize {
 
             acc
         }
-        Grammar::ZeroOrOne(grammar) => rec_calculate_size(grammar) + 1,
-        Grammar::ZeroOrMany(grammar) => rec_calculate_size(grammar) + 1,
-        Grammar::OneOrMany(grammar) => rec_calculate_size(grammar) + 1,
+        Grammar::ZeroOrOne(grammar) | Grammar::ZeroOrMany(grammar) | Grammar::OneOrMany(grammar) => {
+            rec_calculate_size(grammar) + 1
+        }
     }
 }

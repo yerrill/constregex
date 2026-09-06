@@ -45,9 +45,7 @@ where
     ///
     /// Panics if the list is already at capacity `N`.
     pub const fn push_back(&mut self, value: T) {
-        if self.len >= N {
-            panic!("ConstList exceeded size");
-        }
+        assert!(self.len < N, "ConstList exceeded size");
 
         let phys = self.physical_index(self.len);
         self.values[phys] = Some(value);
@@ -61,9 +59,7 @@ where
     /// Panics if the list is already at capacity `N`.
     #[allow(unused)]
     pub const fn push_front(&mut self, value: T) {
-        if self.len >= N {
-            panic!("ConstList exceeded size");
-        }
+        assert!(self.len < N, "ConstList exceeded size");
 
         self.start = (self.start + N - 1) % N;
         self.values[self.start] = Some(value);
@@ -104,9 +100,7 @@ where
     /// Panics if `other` has more values than there is remaining
     /// capacity for, i.e. if `self.len() + other.len() > N`.
     pub const fn extend(&mut self, other: Self) {
-        if self.len + other.len > N {
-            panic!("ConstList exceeded size");
-        }
+        assert!(self.len + other.len <= N, "ConstList exceeded size");
 
         let mut i = 0;
         while i < other.len {
@@ -405,7 +399,7 @@ mod const_list_tests {
         list.push_back(20);
         assert!(matches!(list.pop_back(), Some(20)));
         assert!(matches!(list.pop_back(), Some(10)));
-        assert!(matches!(list.pop_back(), None));
+        assert!(list.pop_back().is_none());
     };
 
     const _: () = {
@@ -414,7 +408,7 @@ mod const_list_tests {
         list.push_front(20);
         assert!(matches!(list.pop_front(), Some(20)));
         assert!(matches!(list.pop_front(), Some(10)));
-        assert!(matches!(list.pop_front(), None));
+        assert!(list.pop_front().is_none());
     };
 
     const _: () = {

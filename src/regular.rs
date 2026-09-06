@@ -2,53 +2,53 @@ use crate::description::Grammar;
 use crate::list::ConstList;
 
 struct Matcher<const MAX_SIZE: usize> {
-    list_1: [bool; MAX_SIZE],
-    list_2: [bool; MAX_SIZE],
-    list_switch: bool,
+    one: [bool; MAX_SIZE],
+    two: [bool; MAX_SIZE],
+    switched: bool,
 }
 
 impl<const MAX_SIZE: usize> Matcher<{ MAX_SIZE }> {
     fn new() -> Self {
         Self {
-            list_1: [false; MAX_SIZE],
-            list_2: [false; MAX_SIZE],
-            list_switch: true,
+            one: [false; MAX_SIZE],
+            two: [false; MAX_SIZE],
+            switched: true,
         }
     }
 
     fn switch(&mut self) {
-        self.list_switch = !self.list_switch;
+        self.switched = !self.switched;
     }
 
     fn set_clist(&mut self, i: usize, v: bool) {
-        if self.list_switch {
-            self.list_1[i] = v;
+        if self.switched {
+            self.one[i] = v;
         } else {
-            self.list_2[i] = v;
+            self.two[i] = v;
         }
     }
 
     fn set_nlist(&mut self, i: usize, v: bool) {
-        if self.list_switch {
-            self.list_2[i] = v;
+        if self.switched {
+            self.two[i] = v;
         } else {
-            self.list_1[i] = v;
+            self.one[i] = v;
         }
     }
 
     fn get_clist(&self, i: usize) -> bool {
-        if self.list_switch {
-            self.list_1[i]
+        if self.switched {
+            self.one[i]
         } else {
-            self.list_2[i]
+            self.two[i]
         }
     }
 
     fn get_nlist(&self, i: usize) -> bool {
-        if self.list_switch {
-            self.list_2[i]
+        if self.switched {
+            self.two[i]
         } else {
-            self.list_1[i]
+            self.one[i]
         }
     }
 }
@@ -126,6 +126,10 @@ pub struct RegularExpression<const MAX_SIZE: usize> {
 }
 
 impl<const MAX_SIZE: usize> RegularExpression<{ MAX_SIZE }> {
+    /// # Panics
+    ///
+    /// Panics if `MAX_SIZE` does not match `input.grammar_size()`.
+    #[must_use]
     pub const fn from_grammar(input: &Grammar) -> Self {
         let mut temp_states: TempStates<MAX_SIZE> = [None; MAX_SIZE];
 
@@ -157,18 +161,16 @@ impl<const MAX_SIZE: usize> RegularExpression<{ MAX_SIZE }> {
 
             // All pointers in states should point to a valid state
             let oob = match &s {
-                Nfa::Wild { out } => is_dangling::<MAX_SIZE>(*out),
-                Nfa::Literal { value: _, out } => is_dangling::<MAX_SIZE>(*out),
-                Nfa::Range { out, .. } => is_dangling::<MAX_SIZE>(*out),
+                Nfa::Wild { out } | Nfa::Literal { value: _, out } | Nfa::Range { out, .. } => {
+                    is_dangling::<MAX_SIZE>(*out)
+                }
                 Nfa::Split { left, right } => {
                     is_dangling::<MAX_SIZE>(*left) || is_dangling::<MAX_SIZE>(*right)
                 }
                 Nfa::Match => false,
             };
 
-            if oob {
-                panic!("Dangling pointer");
-            }
+            assert!(!oob, "Dangling pointer");
 
             states[i] = s;
 
@@ -203,7 +205,7 @@ impl<const MAX_SIZE: usize> RegularExpression<{ MAX_SIZE }> {
             _ => {
                 m.set_nlist(state, true);
             }
-        };
+        }
     }
 
     /// Add every state reachable from `state` by consuming `input` to nlist
@@ -212,13 +214,13 @@ impl<const MAX_SIZE: usize> RegularExpression<{ MAX_SIZE }> {
             Nfa::Wild { out } => self.add_nlist(out, m),
             Nfa::Literal { value, out } if input == value => self.add_nlist(out, m),
             Nfa::Range { start, end, out } if start <= input && input <= end => {
-                self.add_nlist(out, m)
+                self.add_nlist(out, m);
             }
             // A literal or range that did not match is a dead end, `Match` has nowhere
             // to go, and splits are resolved as states are added to a list, so
             // an active state is never a split.
             _ => {}
-        };
+        }
     }
 
     /// Advance state of NFA by one step, consuming `c`. Returns whether any
@@ -254,6 +256,7 @@ impl<const MAX_SIZE: usize> RegularExpression<{ MAX_SIZE }> {
         matcher.get_clist(self.match_state)
     }
 
+    #[must_use]
     pub fn match_whole(&self, input: &str) -> bool {
         let mut m = self.to_matcher();
 
@@ -276,6 +279,7 @@ impl<const MAX_SIZE: usize> RegularExpression<{ MAX_SIZE }> {
     /// Whether the expression matches a prefix of `input`. Accepts exactly
     /// what `split_prefix` splits on, so an empty match does not count: the
     /// prefix has to consume at least one character.
+    #[must_use]
     pub fn match_prefix(&self, input: &str) -> bool {
         let mut m = self.to_matcher();
 
@@ -304,6 +308,7 @@ impl<const MAX_SIZE: usize> RegularExpression<{ MAX_SIZE }> {
     /// Split string on the longest match of the expression at the start of
     /// `input`. The first half is everything the match consumed, the second
     /// is everything after it.
+    #[must_use]
     pub fn split_prefix<'a>(&self, input: &'a str) -> Option<(&'a str, &'a str)> {
         let mut m = self.to_matcher();
 
@@ -392,7 +397,7 @@ const fn patch<const MAX_SIZE: usize>(
                 }
             }
             Nfa::Match => panic!("Cannot join match state"),
-        };
+        }
 
         states[i] = Some(s);
     }
