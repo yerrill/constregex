@@ -43,6 +43,8 @@ const fn rec_calculate_size(input: &Grammar) -> usize {
             acc
         }
         Grammar::Alternation(grammars) => {
+            assert!(!grammars.is_empty(), "Alternation must have at least one branch");
+
             let mut i = 0;
             let mut acc = 0;
 
